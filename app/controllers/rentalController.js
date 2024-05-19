@@ -5,17 +5,36 @@ const db = client.db("RentalService");
 const rentalsCollection = db.collection("rentals");
 
 const createRental = async (req, res) => {
-  const { userId, itemId, startDate, endDate, type, location, price } = req.body;
+  const { userId, itemId, startDate, endDate, type, location, price } =
+    req.body;
 
   try {
-    console.log("Creating rental with data:", { userId, itemId, startDate, endDate, type, location, price });
+    console.log("Creating rental with data:", {
+      userId,
+      itemId,
+      startDate,
+      endDate,
+      type,
+      location,
+      price,
+    });
 
     // Create new rental
-    const result = await rentalsCollection.insertOne({ userId, itemId, startDate, endDate, type, location, price });
+    const result = await rentalsCollection.insertOne({
+      userId,
+      itemId,
+      startDate,
+      endDate,
+      type,
+      location,
+      price,
+    });
     console.log("Rental created:", result);
 
     // Fetch the newly created rental
-    const newRental = await rentalsCollection.findOne({ _id: result.insertedId });
+    const newRental = await rentalsCollection.findOne({
+      _id: result.insertedId,
+    });
     res.json(newRental);
   } catch (err) {
     console.error("Error creating rental:", err.message);
@@ -24,11 +43,17 @@ const createRental = async (req, res) => {
 };
 
 const getAllRentals = async (req, res) => {
+  const { userId } = req.query;
+
   try {
-    const rentals = await rentalsCollection.find().toArray();
+    const query = {};
+    if (userId) {
+      query.userId = userId;
+    }
+    const rentals = await rentalsCollection.find(query).toArray();
     res.json(rentals);
   } catch (err) {
-    console.error("Error fetching all rentals:", err.message);
+    console.error("Error fetching rentals:", err.message);
     res.status(500).send("Server Error");
   }
 };
