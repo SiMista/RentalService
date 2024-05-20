@@ -5,13 +5,11 @@ const db = client.db("RentalService");
 const rentalsCollection = db.collection("rentals");
 
 const createRental = async (req, res) => {
-  const { userId, itemId, startDate, endDate, type, location, price } =
-    req.body;
+  const { userId, startDate, endDate, type, location, price } = req.body;
 
   try {
     console.log("Creating rental with data:", {
       userId,
-      itemId,
       startDate,
       endDate,
       type,
@@ -22,7 +20,6 @@ const createRental = async (req, res) => {
     // Create new rental
     const result = await rentalsCollection.insertOne({
       userId,
-      itemId,
       startDate,
       endDate,
       type,
@@ -75,7 +72,7 @@ const getRentalById = async (req, res) => {
 };
 
 const updateRental = async (req, res) => {
-  const { userId, itemId, startDate, endDate } = req.body;
+  const { userId, startDate, endDate, tenantId } = req.body;
 
   try {
     if (!ObjectId.isValid(req.params.id)) {
@@ -83,18 +80,19 @@ const updateRental = async (req, res) => {
       return res.status(400).json({ msg: "Invalid ID" });
     }
 
+    console.log(req.params.id);
     let result = await rentalsCollection.findOneAndUpdate(
       { _id: new ObjectId(req.params.id) },
-      { $set: { userId, itemId, startDate, endDate } },
+      { $set: { userId, startDate, endDate, tenantId } },
       { returnDocument: "after" }
     );
 
-    if (!result.value) {
+    if (!result) {
       console.log("Rental not found with ID:", req.params.id);
       return res.status(404).json({ msg: "Rental not found" });
     }
 
-    res.json(result.value);
+    res.json(result);
   } catch (err) {
     console.error("Error updating rental:", err.message);
     res.status(500).send("Server Error");
