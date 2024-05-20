@@ -8,16 +8,6 @@ const createRental = async (req, res) => {
   const { userId, startDate, endDate, type, location, price } = req.body;
 
   try {
-    console.log("Creating rental with data:", {
-      userId,
-      startDate,
-      endDate,
-      type,
-      location,
-      price,
-    });
-
-    // Create new rental
     const result = await rentalsCollection.insertOne({
       userId,
       startDate,
@@ -26,9 +16,7 @@ const createRental = async (req, res) => {
       location,
       price,
     });
-    console.log("Rental created:", result);
 
-    // Fetch the newly created rental
     const newRental = await rentalsCollection.findOne({
       _id: result.insertedId,
     });
@@ -40,13 +28,17 @@ const createRental = async (req, res) => {
 };
 
 const getAllRentals = async (req, res) => {
-  const { userId } = req.query;
-
   try {
-    const query = {};
+    const { tenantId, userId } = req.query;
+    let query = {};
+
+    if (tenantId) {
+      query.tenantId = tenantId;
+    }
     if (userId) {
       query.userId = userId;
     }
+
     const rentals = await rentalsCollection.find(query).toArray();
     res.json(rentals);
   } catch (err) {
@@ -61,7 +53,6 @@ const getRentalById = async (req, res) => {
       _id: new ObjectId(req.params.id),
     });
     if (!rental) {
-      console.log("Rental not found with ID:", req.params.id);
       return res.status(404).json({ msg: "Rental not found" });
     }
     res.json(rental);
@@ -71,30 +62,73 @@ const getRentalById = async (req, res) => {
   }
 };
 
-const updateRental = async (req, res) => {
-  const { userId, startDate, endDate, tenantId } = req.body;
+const requestRental = async (req, res) => {
+  const { tenantId } = req.body;
 
   try {
     if (!ObjectId.isValid(req.params.id)) {
-      console.log("Invalid ID:", req.params.id);
       return res.status(400).json({ msg: "Invalid ID" });
     }
 
-    console.log(req.params.id);
     let result = await rentalsCollection.findOneAndUpdate(
       { _id: new ObjectId(req.params.id) },
-      { $set: { userId, startDate, endDate, tenantId } },
+      { $set: { tenantId, process: "Requested" } },
       { returnDocument: "after" }
     );
 
     if (!result) {
-      console.log("Rental not found with ID:", req.params.id);
       return res.status(404).json({ msg: "Rental not found" });
     }
 
     res.json(result);
   } catch (err) {
-    console.error("Error updating rental:", err.message);
+    console.error("Error requesting rental:", err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+const acceptRental = async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ msg: "Invalid ID" });
+    }
+
+    let result = await rentalsCollection.findOneAndUpdate(
+      { _id: new ObjectId(req.params.id) },
+      { $set: { process: "Rented" } },
+      { returnDocument: "after" }
+    );
+
+    if (!result) {
+      return res.status(404).json({ msg: "Rental not found" });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error accepting rental:", err.message);
+    res.status(500).send("Server Error");
+  }
+};
+
+const rejectRental = async (req, res) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ msg: "Invalid ID" });
+    }
+
+    let result = await rentalsCollection.findOneAndUpdate(
+      { _id: new ObjectId(req.params.id) },
+      { $unset: { tenantId: "", process: "" } },
+      { returnDocument: "after" }
+    );
+
+    if (!result) {
+      return res.status(404).json({ msg: "Rental not found" });
+    }
+
+    res.json(result);
+  } catch (err) {
+    console.error("Error rejecting rental:", err.message);
     res.status(500).send("Server Error");
   }
 };
@@ -105,7 +139,6 @@ const deleteRental = async (req, res) => {
       _id: new ObjectId(req.params.id),
     });
     if (result.deletedCount === 0) {
-      console.log("Rental not found with ID:", req.params.id);
       return res.status(404).json({ msg: "Rental not found" });
     }
     res.json({ msg: "Rental removed" });
@@ -115,32 +148,12 @@ const deleteRental = async (req, res) => {
   }
 };
 
-const searchRentals = async (req, res) => {
-  const { type, location, minBudget, maxBudget } = req.query;
-
-  try {
-    const query = {};
-    if (type) query.type = type;
-    if (location) query.location = location;
-    if (minBudget) query.price = { $gte: parseFloat(minBudget) };
-    if (maxBudget) {
-      if (!query.price) query.price = {};
-      query.price.$lte = parseFloat(maxBudget);
-    }
-
-    const rentals = await rentalsCollection.find(query).toArray();
-    res.json(rentals);
-  } catch (err) {
-    console.error("Error searching rentals:", err.message);
-    res.status(500).send("Server Error");
-  }
-};
-
 module.exports = {
   createRental,
   getAllRentals,
   getRentalById,
-  updateRental,
+  requestRental,
+  acceptRental,
+  rejectRental,
   deleteRental,
-  searchRentals,
 };
